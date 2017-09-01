@@ -66,6 +66,22 @@ switch expr {
       Type (SimpleFnType AnyType returnType)
     })
   }
+  | FnCall fn arg1 => {
+    let fnType_ = typeOf fn env;
+    let arg1Type_ = typeOf arg1 env;
+    withType arg1Type_ (fun actualArg1Type => {
+      withType fnType_ (fun fnType => switch fnType {
+        | SimpleFnType arg1Type retType => {
+          if (doesMatchType arg1Type actualArg1Type) {
+            Type retType
+          } else {
+            TypeMismatch expr arg1Type actualArg1Type
+          }
+        }
+        | _ => TypeMismatch expr (SimpleFnType AnyType AnyType) fnType
+      })
+    })
+  }
   | VarReference varName => Type (lookUpType env varName)
 };
 

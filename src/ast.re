@@ -4,7 +4,8 @@ type expression =
   | StringLiteral string
   | Plus expression expression
   | Minus expression expression
-  | SimpleFn string expression;
+  | SimpleFn string expression
+  | FnCall expression expression;
 
 type statement =
   | VarAssignment string expression;
@@ -19,7 +20,8 @@ let rec formatExpression = fun expr => switch expr {
   | StringLiteral x => "\"" ^ x ^ "\"";
   | Plus a b => "(" ^ (formatExpression a) ^ " + " ^ (formatExpression b) ^ ")";
   | Minus a b => "(" ^ (formatExpression a) ^ " - " ^ (formatExpression b) ^ ")";
-  | SimpleFn arg1 expr => arg1 ^ " => " ^ (formatExpression expr);
+  | SimpleFn arg1 expr => arg1 ^ " => " ^ (formatExpression expr)
+  | FnCall fn arg1 => (formatExpression fn) ^ "(" ^ (formatExpression arg1) ^ ")";
 };
 
 let formatStatement = fun stmt => switch stmt {

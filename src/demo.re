@@ -9,6 +9,8 @@ let testProgram = [
   Statement (VarAssignment "y3" (Minus (VarReference "name") (VarReference "name"))),
   Statement (VarAssignment "y4" (Minus (VarReference "x") (NumberLiteral 1))),
   Statement (VarAssignment "add1" (SimpleFn "x" (Plus (VarReference "x") (NumberLiteral 1)))),
+  Statement (VarAssignment "res1" (FnCall (VarReference "add1") (NumberLiteral 5))),
+  Statement (VarAssignment "res2" (FnCall (VarReference "x") (NumberLiteral 5))),
 ];
 
 let analyzeProgram = fun program => {
