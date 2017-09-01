@@ -29,11 +29,15 @@ var y4 = (x - 1)
 var add1 = x => (x + 1)
 var res1 = add1(5)
 var res2 = x(5)
+var add2 = x => (x + ":)")
+var sub1 = x => (x - 1)
 
 Types:
 
-- res1: any
-- add1: any => any
+- sub1: number => number
+- add2: string => string
+- res1: number
+- add1: number => number
 - y4: number
 - y2: number
 - name: string
@@ -41,9 +45,9 @@ Types:
 
 Errors:
 
-- Type mismatch in 'x(5)', expected a any => any, got a number
-- Type mismatch in '(name - name)', expected a number, got a string
 - Type mismatch in '(name + 2)', expected a string, got a number
+- Type mismatch in '(name - name)', expected a number, got a string
+- Type mismatch in 'x(5)', expected a any => any, got a number
 ```
 
 ## Todo

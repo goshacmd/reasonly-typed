@@ -14,6 +14,7 @@ let lookUpType = fun env varName => {
   let (_, type_) = List.find (fun (var, _) => var == varName) env;
   type_
 };
+let addVar = fun varName type_ env errors => ([(varName, type_), ...env], errors);
 
 let rec typeToString = fun type_ => switch type_ {
   | NumberType => "number";
@@ -46,7 +47,59 @@ let doesMatchType = fun expectedType givenType => {
   }
 };
 
-let rec typeOf = fun expr env =>
+let isVar = fun expr varName => switch expr {
+  | VarReference vn => varName == vn;
+  | _ => false;
+};
+
+let makeSingleVarEnv = fun varName => [(varName, AnyType)];
+
+let rec inferType = fun expr varName =>
+switch expr {
+  | Plus a b => {
+    if ((isVar a varName) || (isVar b varName)) {
+      switch (typeOf a (makeSingleVarEnv varName)) {
+        | Type typeA => switch (typeOf b (makeSingleVarEnv varName)) {
+          | Type typeB => {
+            if (typeA === NumberType || typeB === NumberType) {
+              NumberType
+            } else if (typeB === StringType || typeB === StringType) {
+              StringType
+            } else {
+              AnyType
+            }
+          }
+          | _ => AnyType;
+        }
+        | _ => AnyType;
+      }
+    } else {
+      AnyType
+    }
+  }
+  | Minus a b => {
+    if ((isVar a varName) || (isVar b varName)) {
+      switch (typeOf a (makeSingleVarEnv varName)) {
+        | Type typeA => switch (typeOf b (makeSingleVarEnv varName)) {
+          | Type typeB => {
+            if (typeA === NumberType || typeB === NumberType) {
+              NumberType
+            } else {
+              AnyType
+            }
+          }
+          | _ => AnyType;
+        }
+        | _ => AnyType;
+      }
+    } else {
+      AnyType
+    }
+  }
+  | _ => AnyType;
+}
+
+and typeOf = fun expr env =>
 switch expr {
   | NumberLiteral _ => Type NumberType
   | StringLiteral _ => Type StringType
@@ -60,10 +113,11 @@ switch expr {
       (doesMatchType typeA typeB) ? ((doesMatchType NumberType typeA) ? (Type typeA) : (TypeMismatch expr NumberType typeA)) : (TypeMismatch expr typeA typeB)
     });
   }
-  | SimpleFn _ expr => {
-    let returnTypeResult = typeOf expr [("x", AnyType), ...env];
+  | SimpleFn varName expr => {
+    let varType = inferType expr varName;
+    let returnTypeResult = typeOf expr [(varName, varType), ...env];
     withType returnTypeResult (fun returnType => {
-      Type (SimpleFnType AnyType returnType)
+      Type (SimpleFnType varType returnType)
     })
   }
   | FnCall fn arg1 => {
@@ -90,8 +144,7 @@ type resultEnv = (env, errors);
 
 let emptyResultEnv = ([], []);
 
-let addVar = fun varName type_ env errors => ([(varName, type_), ...env], errors);
-let addError = fun error env errors => (env, [error, ...errors]);
+let addError = fun error env errors => (env, errors @ [error]);
 
 let buildEnv = fun program => List.fold_left (fun (env, errors) element => {
   switch element {

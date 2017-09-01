@@ -11,6 +11,8 @@ let testProgram = [
   Statement (VarAssignment "add1" (SimpleFn "x" (Plus (VarReference "x") (NumberLiteral 1)))),
   Statement (VarAssignment "res1" (FnCall (VarReference "add1") (NumberLiteral 5))),
   Statement (VarAssignment "res2" (FnCall (VarReference "x") (NumberLiteral 5))),
+  Statement (VarAssignment "add2" (SimpleFn "x" (Plus (VarReference "x") (StringLiteral ":)")))),
+  Statement (VarAssignment "sub1" (SimpleFn "x" (Minus (VarReference "x") (NumberLiteral 1)))),
 ];
 
 let analyzeProgram = fun program => {
