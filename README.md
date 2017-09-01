@@ -51,3 +51,4 @@ Errors:
 * functions over multiple variables
 * refine types: (x => x + 1) should have a type of `number => number`, not `any => any`
 * conditionals
+* nullable types
