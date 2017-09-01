@@ -4,7 +4,8 @@ type type_ =
   | NumberType
   | StringType
   | AnyType
-  | SimpleFnType type_ type_;
+  | SimpleFnType type_ type_
+  | SumType type_ type_;
 
 type typeResult = Type type_ | TypeMismatch expression type_ type_;
 
@@ -21,6 +22,7 @@ let rec typeToString = fun type_ => switch type_ {
   | StringType => "string";
   | AnyType => "any";
   | SimpleFnType from to_ => (typeToString from) ^ " => " ^ (typeToString to_);
+  | SumType a b => (typeToString a) ^ " | " ^ (typeToString b);
 };
 
 let typeErrorToString = fun expr expected got => "Type mismatch in '" ^ (formatExpression expr) ^ "', expected a " ^ (typeToString expected) ^ ", got a " ^ (typeToString got);
@@ -39,8 +41,13 @@ let isAny = fun type_ => switch type_ {
   | _ => false;
 };
 
+let rec doesSumInclude = fun possiblySum expectedType => switch possiblySum {
+  | SumType a b => (doesSumInclude a expectedType) || (doesSumInclude b expectedType)
+  | x => x == expectedType
+};
+
 let doesMatchType = fun expectedType givenType => {
-  if ((isAny expectedType) || (isAny givenType)) {
+  if ((isAny expectedType) || (isAny givenType) || (doesSumInclude givenType expectedType)) {
     true
   } else {
     expectedType == givenType
@@ -57,7 +64,9 @@ let makeSingleVarEnv = fun varName => [(varName, AnyType)];
 let rec inferType = fun expr varName =>
 switch expr {
   | Plus a b => {
-    if ((isVar a varName) || (isVar b varName)) {
+    if ((isVar a varName) && (isVar b varName)) {
+      SumType NumberType StringType
+    } else if ((isVar a varName) || (isVar b varName)) {
       switch (typeOf a (makeSingleVarEnv varName)) {
         | Type typeA => switch (typeOf b (makeSingleVarEnv varName)) {
           | Type typeB => {
