@@ -33,9 +33,11 @@ var res2 = x(5)
 var add2 = x => (x + ":)")
 var add3 = x => (x + x)
 var sub1 = x => (x - 1)
+var megaAdd = x => y => (x + y)
 
 Types:
 
+- megaAdd: number => number => number
 - sub1: number => number
 - add3: number => number
 - res1: number
@@ -58,6 +60,7 @@ Errors:
 
 ## Todo
 
+* tests
 * functions over multiple variables
 * conditionals
 * nullable types

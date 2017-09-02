@@ -75,6 +75,7 @@ let rec inferType = fun expr varName env => switch expr {
       AnyType
     }
   }
+  | SimpleFn _ bodyExpr => inferType (transformPlusMinus bodyExpr) varName env
   | _ => AnyType
 }
 

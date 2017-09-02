@@ -31,6 +31,7 @@ let testProgram = Ast.([
   Statement (VarAssignment "add2" (SimpleFn "x" (Plus (VarReference "x") (StringLiteral ":)")))),
   Statement (VarAssignment "add3" (SimpleFn "x" (Plus (VarReference "x") (VarReference "x")))),
   Statement (VarAssignment "sub1" (SimpleFn "x" (Minus (VarReference "x") (NumberLiteral 1)))),
+  Statement (VarAssignment "megaAdd" (SimpleFn "x" (SimpleFn "y" (Plus (VarReference "x") (VarReference "y"))))),
 ]);
 
 analyzeProgram testProgram;
