@@ -5,7 +5,8 @@ type expression =
   | Plus expression expression
   | Minus expression expression
   | SimpleFn string expression
-  | FnCall expression expression;
+  | FnCall expression expression
+  ;
 
 type statement =
   | VarAssignment string expression;
@@ -34,3 +35,13 @@ let formatElement = fun element => switch element {
 };
 
 let formatProgram = fun program => Util.joinList "\n" (List.map formatElement program);
+
+let isVar = fun expr varName => switch expr {
+  | VarReference vn => varName == vn;
+  | _ => false;
+};
+
+let isFnCall = fun expr => switch expr {
+  | FnCall _ _ => true
+  | _ => false
+};
