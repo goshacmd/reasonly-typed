@@ -7,6 +7,7 @@ type type_ =
   | SimpleFnType type_ type_
   ;
 
+
 type either 'a 'b = Left 'a | Right 'b;
 let bindEither = fun either fn => switch either {
   | Right x => fn x
@@ -57,23 +58,14 @@ let isAny = fun type_ => switch type_ {
   | _ => false
 };
 
-let typeErrorToString = fun expr expected got => "Type mismatch in '" ^ (formatExpression expr) ^ "', expected a " ^ (typeToString expected) ^ ", got a " ^ (typeToString got);
-let notAFnToString = fun expr fnExpr => "In '" ^ (formatExpression expr) ^ "', '" ^ (formatExpression fnExpr) ^ "' is not a function";
-let noVariableToString = fun expr varName => "No variable '" ^ varName ^ "', in '" ^ (formatExpression expr) ^ "'";
 let formatError = fun error => switch error {
-  | TypeMismatch x a b => typeErrorToString x a b
-  | NotAFunction expr fnExpr => notAFnToString expr fnExpr
-  | NoVariable expr varName => noVariableToString expr varName
+  | TypeMismatch expr expected got => "Type mismatch in '" ^ (formatExpression expr) ^ "', expected a " ^ (typeToString expected) ^ ", got a " ^ (typeToString got);
+  | NotAFunction expr fnExpr => "In '" ^ (formatExpression expr) ^ "', '" ^ (formatExpression fnExpr) ^ "' is not a function";
+  | NoVariable expr varName => "No variable '" ^ varName ^ "', in '" ^ (formatExpression expr) ^ "'";
 };
 
 let doesMatchType = fun expectedType givenType => {
   expectedType == givenType || (isAny givenType)
-};
-
-let rec transformPlusMinus = fun expr => switch expr {
-  | Plus a b => FnCall (FnCall (VarReference "+") (transformPlusMinus a)) (transformPlusMinus b)
-  | Minus a b => FnCall (FnCall (VarReference "-") (transformPlusMinus a)) (transformPlusMinus b)
-  | x => x
 };
 
 let rec inferType = fun expr varName env => switch expr {
@@ -92,7 +84,7 @@ let rec inferType = fun expr varName env => switch expr {
       AnyType
     }
   }
-  | SimpleFn _ bodyExpr => inferType (transformPlusMinus bodyExpr) varName env
+  | SimpleFn _ bodyExpr => inferType bodyExpr varName env
   | _ => AnyType
 }
 
@@ -129,11 +121,9 @@ switch expr {
 type errors = list string;
 type resultEnv = (env, errors);
 
-let plusType = SimpleFnType NumberType (SimpleFnType NumberType NumberType);
-let minusType = SimpleFnType NumberType (SimpleFnType NumberType NumberType);
 let defaultEnv = [
-  ("+", plusType),
-  ("-", minusType),
+  ("+", SimpleFnType NumberType (SimpleFnType NumberType NumberType)),
+  ("-", SimpleFnType NumberType (SimpleFnType NumberType NumberType)),
 ];
 
 let emptyResultEnv = (defaultEnv, []);
@@ -143,16 +133,14 @@ let addError = fun error env errors => (env, errors @ [error]);
 let buildEnv = fun program => List.fold_left (fun (env, errors) element => {
   switch element {
     | Expression expr => {
-      let type_ = typeOf expr env;
-      switch type_ {
+      switch (typeOf expr env) {
         | Right _ => (env, errors);
         | Left x => addError (formatError x) env errors;
       }
     };
     | Statement stmt => switch stmt {
       | VarAssignment varName expr => {
-        let type_ = typeOf expr env;
-        switch type_ {
+        switch (typeOf expr env) {
           | Right x => addVar varName x env errors;
           | Left x => addError (formatError x) env errors;
         }

@@ -28,20 +28,26 @@ let rec formatExpression = fun expr => switch expr {
 let formatStatement = fun stmt => switch stmt {
   | VarAssignment varName expr => "var " ^ varName ^ " = " ^ (formatExpression expr);
 };
-
 let formatElement = fun element => switch element {
   | Expression e => formatExpression e;
   | Statement s => formatStatement s;
 };
-
 let formatProgram = fun program => Util.joinList "\n" (List.map formatElement program);
 
 let isVar = fun expr varName => switch expr {
   | VarReference vn => varName == vn;
   | _ => false;
 };
-
 let isFnCall = fun expr => switch expr {
   | FnCall _ _ => true
   | _ => false
 };
+
+let rec transformPlusMinus = fun expr => switch expr {
+  | Plus a b => FnCall (FnCall (VarReference "+") (transformPlusMinus a)) (transformPlusMinus b)
+  | Minus a b => FnCall (FnCall (VarReference "-") (transformPlusMinus a)) (transformPlusMinus b)
+  | SimpleFn argName bodyExpr => SimpleFn argName (transformPlusMinus bodyExpr)
+  | FnCall fnExpr argExpr => FnCall (transformPlusMinus fnExpr) (transformPlusMinus argExpr)
+  | x => x
+};
+
