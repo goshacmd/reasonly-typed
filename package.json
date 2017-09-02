@@ -1,5 +1,5 @@
 {
-  "name": "reasonably-typed",
+  "name": "reasonly-typed",
   "version": "0.1.0",
   "scripts": {
     "clean": "bsb -clean-world",
