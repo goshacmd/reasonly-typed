@@ -7,12 +7,28 @@ type type_ =
   | SimpleFnType type_ type_
   ;
 
-type typeResult =
-  | Type type_
+type either 'a 'b = Left 'a | Right 'b;
+let bindEither = fun either fn => switch either {
+  | Right x => fn x
+  | Left x => Left x
+};
+let mapEither = fun either fn => switch either {
+  | Right x => Right (fn x)
+  | Left x => Left x
+};
+let mapLeft = fun either fn => switch either {
+  | Left x => Left (fn x)
+  | Right x => Right x
+};
+
+
+type typeError =
   | TypeMismatch expression type_ type_
   | NotAFunction expression expression
   | NoVariable expression string
   ;
+
+type typeResult = either typeError type_;
 
 type env = list (string, type_);
 
@@ -23,6 +39,11 @@ switch (Util.maybeFind (fun (var, _) => var == varName) env) {
 };
 
 let addVar = fun varName type_ env errors => ([(varName, type_), ...env], errors);
+
+let changeMismatchExpr = fun newExpr error => switch error {
+  | TypeMismatch _ exp actual => TypeMismatch newExpr exp actual
+  | x => x
+};
 
 let rec typeToString = fun type_ => switch type_ {
   | NumberType => "number";
@@ -39,15 +60,11 @@ let isAny = fun type_ => switch type_ {
 let typeErrorToString = fun expr expected got => "Type mismatch in '" ^ (formatExpression expr) ^ "', expected a " ^ (typeToString expected) ^ ", got a " ^ (typeToString got);
 let notAFnToString = fun expr fnExpr => "In '" ^ (formatExpression expr) ^ "', '" ^ (formatExpression fnExpr) ^ "' is not a function";
 let noVariableToString = fun expr varName => "No variable '" ^ varName ^ "', in '" ^ (formatExpression expr) ^ "'";
-
-let withType = fun typeResult fn =>
-switch typeResult {
-  | Type type_ => fn type_;
-  | x => x;
+let formatError = fun error => switch error {
+  | TypeMismatch x a b => typeErrorToString x a b
+  | NotAFunction expr fnExpr => notAFnToString expr fnExpr
+  | NoVariable expr varName => noVariableToString expr varName
 };
-
-let withTwoTypes = fun typeA_ typeB_ fn =>
-withType typeA_ (fun typeA => withType typeB_ (fun typeB => fn typeA typeB));
 
 let doesMatchType = fun expectedType givenType => {
   expectedType == givenType || (isAny givenType)
@@ -63,7 +80,7 @@ let rec inferType = fun expr varName env => switch expr {
   | FnCall fnName arg1 => {
     if (isVar arg1 varName) {
       switch (typeOf fnName env) {
-        | Type x => switch x {
+        | Right x => switch x {
           | SimpleFnType from _ => from
           | _ => AnyType
         }
@@ -81,36 +98,31 @@ let rec inferType = fun expr varName env => switch expr {
 
 and typeOf = fun expr env =>
 switch expr {
-  | NumberLiteral _ => Type NumberType
-  | StringLiteral _ => Type StringType
-  | Plus a b => switch (typeOf (FnCall (FnCall (VarReference "+") a) b) env) {
-    | TypeMismatch _ exp actual => TypeMismatch expr exp actual
-    | x => x
-  }
-  | Minus a b => switch (typeOf (FnCall (FnCall (VarReference "-") a) b) env) {
-    | TypeMismatch _ exp actual => TypeMismatch expr exp actual
-    | x => x
-  }
+  | NumberLiteral _ => Right NumberType
+  | StringLiteral _ => Right StringType
+  | Plus a b => mapLeft (typeOf (FnCall (FnCall (VarReference "+") a) b) env) (changeMismatchExpr expr)
+  | Minus a b => mapLeft (typeOf (FnCall (FnCall (VarReference "-") a) b) env) (changeMismatchExpr expr)
   | SimpleFn varName bodyExpr => {
     let varType = inferType (transformPlusMinus bodyExpr) varName env;
     let returnTypeResult = typeOf bodyExpr [(varName, varType), ...env];
-    withType returnTypeResult (fun returnType => Type (SimpleFnType varType returnType))
+    mapEither returnTypeResult (fun returnType => SimpleFnType varType returnType)
   }
   | FnCall fnName arg1 => {
-    withType (typeOf fnName env) (fun fnType => switch fnType {
-      | SimpleFnType expectedArgType returnType => withType (typeOf arg1 env) (fun arg1Type => {
+    let fnTypeResult = typeOf fnName env;
+    bindEither fnTypeResult (fun fnType => switch fnType {
+      | SimpleFnType expectedArgType returnType => bindEither (typeOf arg1 env) (fun arg1Type => {
         if (doesMatchType expectedArgType arg1Type) {
-          Type returnType
+          Right returnType
         } else {
-          TypeMismatch expr expectedArgType arg1Type
+          Left (TypeMismatch expr expectedArgType arg1Type)
         }
       })
-      | _ => NotAFunction expr fnName
+      | _ => Left (NotAFunction expr fnName)
     })
   }
   | VarReference varName => switch (lookUpType env varName) {
-    | Some type_ => Type type_
-    | None => NoVariable expr varName
+    | Some type_ => Right type_
+    | None => Left (NoVariable expr varName)
   }
 };
 
@@ -133,20 +145,16 @@ let buildEnv = fun program => List.fold_left (fun (env, errors) element => {
     | Expression expr => {
       let type_ = typeOf expr env;
       switch type_ {
-        | Type _ => (env, errors);
-        | TypeMismatch x a b => addError (typeErrorToString x a b) env errors;
-        | NotAFunction expr fnExpr => addError (notAFnToString expr fnExpr) env errors;
-        | NoVariable expr varName => addError (noVariableToString expr varName) env errors;
+        | Right _ => (env, errors);
+        | Left x => addError (formatError x) env errors;
       }
     };
     | Statement stmt => switch stmt {
       | VarAssignment varName expr => {
         let type_ = typeOf expr env;
         switch type_ {
-          | Type x => addVar varName x env errors;
-          | TypeMismatch x a b => addError (typeErrorToString x a b) env errors;
-          | NotAFunction expr fnExpr => addError (notAFnToString expr fnExpr) env errors;
-          | NoVariable expr varName => addError (noVariableToString expr varName) env errors;
+          | Right x => addVar varName x env errors;
+          | Left x => addError (formatError x) env errors;
         }
       }
     }
