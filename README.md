@@ -14,7 +14,17 @@ Build + watch:
 npm run watch
 ```
 
-Either of these will produce a `lib/js/src/demo.js` file which can be run with node:
+To run tests:
+
+```
+$ node lib/js/src/tests.js
+OK: Proper literal types
+OK: Proper type for number addition
+OK: Error for adding a number with a string
+OK: Properly inferred types of function arguments
+```
+
+The build/watch commands will also produce a `lib/js/src/demo.js` file which can be run with node:
 
 ```
 $ node lib/js/src/demo.js
@@ -60,7 +70,6 @@ Errors:
 
 ## Todo
 
-* tests
 * functions over multiple variables
 * conditionals
 * nullable types
