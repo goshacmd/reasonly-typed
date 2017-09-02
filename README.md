@@ -75,3 +75,5 @@ Errors:
 * nullable types
 * sum types
 * generics
+* arrays of A
+* no-arg functions

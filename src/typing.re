@@ -99,7 +99,7 @@ let computeFnCallType = fun expr expectedArgType returnType arg1Type => {
   }
 };
 
-let rec inferType = fun expr varName env => switch expr {
+let rec inferType = fun (expr: expression) (varName: string) (env: env) : type_ => switch expr {
   | VarReference refVarName => if (refVarName == varName) { GenericLabel "A" } else { AnyType }
   | FnCall fnName arg1 => {
     if (isVar arg1 varName) {
@@ -120,7 +120,7 @@ let rec inferType = fun expr varName env => switch expr {
   | _ => AnyType
 }
 
-and typeOf = fun expr env =>
+and typeOf = fun (expr: expression) (env: env) : typeResult =>
 switch expr {
   | NumberLiteral _ => Right NumberType
   | StringLiteral _ => Right StringType
