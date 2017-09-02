@@ -13,13 +13,18 @@ let bindEither = fun either fn => switch either {
   | Right x => fn x
   | Left x => Left x
 };
-let mapEither = fun either fn => switch either {
+let mapEither = fun fn either => switch either {
   | Right x => Right (fn x)
   | Left x => Left x
 };
-let mapLeft = fun either fn => switch either {
+let mapLeft = fun fn either => switch either {
   | Left x => Left (fn x)
   | Right x => Right x
+};
+
+let mapSome = fun fn optn => switch optn {
+  | Some x => Some (fn x)
+  | None => None
 };
 
 
@@ -34,10 +39,9 @@ type typeResult = either typeError type_;
 type env = list (string, type_);
 
 let lookUpType = fun env varName =>
-switch (Util.maybeFind (fun (var, _) => var == varName) env) {
-  | Some (_, type_) => Some type_
-  | None => None
-};
+  env
+  |> Util.maybeFind (fun (var, _) => var == varName)
+  |> mapSome (fun (_, type_) => type_);
 
 let addVar = fun varName type_ env errors => ([(varName, type_), ...env], errors);
 
@@ -64,9 +68,7 @@ let formatError = fun error => switch error {
   | NoVariable expr varName => "No variable '" ^ varName ^ "', in '" ^ (formatExpression expr) ^ "'";
 };
 
-let doesMatchType = fun expectedType givenType => {
-  expectedType == givenType || (isAny givenType)
-};
+let doesMatchType = fun expectedType givenType => (expectedType == givenType) || (isAny givenType);
 
 let rec inferType = fun expr varName env => switch expr {
   | FnCall fnName arg1 => {
@@ -92,12 +94,13 @@ and typeOf = fun expr env =>
 switch expr {
   | NumberLiteral _ => Right NumberType
   | StringLiteral _ => Right StringType
-  | Plus a b => mapLeft (typeOf (FnCall (FnCall (VarReference "+") a) b) env) (changeMismatchExpr expr)
-  | Minus a b => mapLeft (typeOf (FnCall (FnCall (VarReference "-") a) b) env) (changeMismatchExpr expr)
+  | Plus a b => (typeOf (FnCall (FnCall (VarReference "+") a) b) env) |> mapLeft (changeMismatchExpr expr)
+  | Minus a b => (typeOf (FnCall (FnCall (VarReference "-") a) b) env) |> mapLeft (changeMismatchExpr expr)
   | SimpleFn varName bodyExpr => {
     let varType = inferType (transformPlusMinus bodyExpr) varName env;
-    let returnTypeResult = typeOf bodyExpr [(varName, varType), ...env];
-    mapEither returnTypeResult (fun returnType => SimpleFnType varType returnType)
+
+    typeOf bodyExpr [(varName, varType), ...env]
+    |> mapEither (fun returnType => SimpleFnType varType returnType);
   }
   | FnCall fnName arg1 => {
     let fnTypeResult = typeOf fnName env;
