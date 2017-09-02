@@ -1,4 +1,4 @@
-let joinList = fun sep lst => List.fold_left (fun str x => str ^ sep ^ x) "" lst;
+let joinList = fun sep lst => List.fold_left (fun str x => if (str === "") { x } else { str ^ sep ^ x }) "" lst;
 
 let maybeFind = fun fn lst => {
   let filtered = List.filter fn lst;
