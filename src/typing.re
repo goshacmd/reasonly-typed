@@ -4,6 +4,7 @@ type type_ =
   | NumberType
   | StringType
   | AnyType
+  | GenericLabel string
   | SimpleFnType type_ type_
   ;
 
@@ -54,11 +55,17 @@ let rec typeToString = fun type_ => switch type_ {
   | NumberType => "number";
   | StringType => "string";
   | AnyType => "any";
+  | GenericLabel label => label;
   | SimpleFnType from to_ => (typeToString from) ^ " => " ^ (typeToString to_);
 };
 
 let isAny = fun type_ => switch type_ {
   | AnyType => true
+  | _ => false
+};
+
+let isGenericVar = fun type_ => switch type_ {
+  | GenericLabel _ => true
   | _ => false
 };
 
@@ -68,9 +75,30 @@ let formatError = fun error => switch error {
   | NoVariable expr varName => "No variable '" ^ varName ^ "', in '" ^ (formatExpression expr) ^ "'";
 };
 
-let doesMatchType = fun expectedType givenType => (expectedType == givenType) || (isAny givenType);
+let doesMatchType = fun expectedType givenType => (expectedType == givenType) || (isAny givenType) || (isAny expectedType);
+
+let computeFnCallType = fun expr expectedArgType returnType arg1Type => {
+  let expectedArg1Type = if (isGenericVar expectedArgType) {
+    arg1Type
+  } else {
+    expectedArgType
+  };
+
+  let actualReturnType = if ((isGenericVar expectedArgType) && (expectedArgType == returnType)) {
+    arg1Type
+  } else {
+    returnType
+  };
+
+  if (doesMatchType expectedArg1Type arg1Type) {
+    Right actualReturnType
+  } else {
+    Left (TypeMismatch expr expectedArg1Type arg1Type)
+  }
+};
 
 let rec inferType = fun expr varName env => switch expr {
+  | VarReference refVarName => if (refVarName == varName) { GenericLabel "A" } else { AnyType }
   | FnCall fnName arg1 => {
     if (isVar arg1 varName) {
       switch (typeOf fnName env) {
@@ -105,13 +133,8 @@ switch expr {
   | FnCall fnName arg1 => {
     let fnTypeResult = typeOf fnName env;
     bindEither fnTypeResult (fun fnType => switch fnType {
-      | SimpleFnType expectedArgType returnType => bindEither (typeOf arg1 env) (fun arg1Type => {
-        if (doesMatchType expectedArgType arg1Type) {
-          Right returnType
-        } else {
-          Left (TypeMismatch expr expectedArgType arg1Type)
-        }
-      })
+      | SimpleFnType expectedArgType returnType =>
+        bindEither (typeOf arg1 env) (fun arg1Type => computeFnCallType expr expectedArgType returnType arg1Type)
       | _ => Left (NotAFunction expr fnName)
     })
   }

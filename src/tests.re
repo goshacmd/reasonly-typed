@@ -83,3 +83,13 @@ expect "Signal no-variable and not-a-function errors" Ast.([
   {|In 'x(1)', 'x' is not a function|},
   {|No variable 'nonExistent', in 'nonExistent'|},
 ];
+
+expect "Types the id function properly" Ast.([
+  Statement (VarAssignment "id" (SimpleFn "x" (VarReference "x"))),
+  Statement (VarAssignment "five" (FnCall (VarReference "id") (NumberLiteral 5))),
+  Statement (VarAssignment "idRes" (FnCall (VarReference "id") (VarReference "id"))),
+]) Typing.([
+  ("idRes", SimpleFnType (GenericLabel "A") (GenericLabel "A")),
+  ("five", NumberType),
+  ("id", SimpleFnType (GenericLabel "A") (GenericLabel "A")),
+]) [];
