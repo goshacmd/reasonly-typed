@@ -89,7 +89,7 @@ expect "Types the id function properly" Ast.([
   Statement (VarAssignment "five" (FnCall (VarReference "id") (NumberLiteral 5))),
   Statement (VarAssignment "idRes" (FnCall (VarReference "id") (VarReference "id"))),
 ]) Typing.([
-  ("idRes", SimpleFnType (GenericLabel "A") (GenericLabel "A")),
+  ("idRes", (GenericType ["A"] (SimpleFnType (GenericLabel "A") (GenericLabel "A")))),
   ("five", NumberType),
-  ("id", SimpleFnType (GenericLabel "A") (GenericLabel "A")),
+  ("id", (GenericType ["A"] (SimpleFnType (GenericLabel "A") (GenericLabel "A")))),
 ]) [];

@@ -4,6 +4,7 @@ type type_ =
   | NumberType
   | StringType
   | AnyType
+  | GenericType (list string) type_
   | GenericLabel string
   | SimpleFnType type_ type_
   ;
@@ -55,6 +56,7 @@ let rec typeToString = fun type_ => switch type_ {
   | NumberType => "number";
   | StringType => "string";
   | AnyType => "any";
+  | GenericType labels wrappedType => "<" ^ (Util.joinList "," labels) ^ ">" ^ (typeToString wrappedType);
   | GenericLabel label => label;
   | SimpleFnType from to_ => (typeToString from) ^ " => " ^ (typeToString to_);
 };
@@ -128,11 +130,19 @@ switch expr {
     let varType = inferType (transformPlusMinus bodyExpr) varName env;
 
     typeOf bodyExpr [(varName, varType), ...env]
-    |> mapEither (fun returnType => SimpleFnType varType returnType);
+    |> mapEither (fun returnType => switch varType {
+      | GenericLabel label => GenericType [label] (SimpleFnType varType returnType)
+      | _ => SimpleFnType varType returnType
+    });
   }
   | FnCall fnName arg1 => {
     let fnTypeResult = typeOf fnName env;
     bindEither fnTypeResult (fun fnType => switch fnType {
+      | GenericType _ wrapped => switch wrapped {
+        | SimpleFnType expectedArgType returnType =>
+          bindEither (typeOf arg1 env) (fun arg1Type => computeFnCallType expr expectedArgType returnType arg1Type)
+        | _ => Left (NotAFunction expr fnName)
+      }
       | SimpleFnType expectedArgType returnType =>
         bindEither (typeOf arg1 env) (fun arg1Type => computeFnCallType expr expectedArgType returnType arg1Type)
       | _ => Left (NotAFunction expr fnName)
