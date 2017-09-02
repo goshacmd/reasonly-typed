@@ -54,7 +54,7 @@ expect "Error for adding a number with a string" Ast.([
 ]) Typing.([
   ("x", NumberType),
 ]) [
-  {|Type mismatch in '(x + "Yo")', expected a number, got a string|}
+  {|Type mismatch in '(x + "Yo")', expected a number, got a string|},
 ];
 
 expect "Properly inferred types of function arguments" Ast.([
@@ -64,3 +64,22 @@ expect "Properly inferred types of function arguments" Ast.([
   ("noOp", SimpleFnType AnyType (SimpleFnType AnyType NumberType)),
   ("megaAdd", SimpleFnType NumberType (SimpleFnType NumberType NumberType)),
 ]) [];
+
+expect "Properly inferred types function output" Ast.([
+  Statement (VarAssignment "add1" (SimpleFn "x" (Plus (VarReference "x") (NumberLiteral 1)))),
+  Statement (VarAssignment "y" (FnCall (VarReference "add1") (NumberLiteral 1))),
+]) Typing.([
+  ("y", NumberType),
+  ("add1", SimpleFnType NumberType NumberType),
+]) [];
+
+expect "Signal no-variable and not-a-function errors" Ast.([
+  Statement (VarAssignment "x" (NumberLiteral 10)),
+  Statement (VarAssignment "y1" (FnCall (VarReference "x") (NumberLiteral 1))),
+  Statement (VarAssignment "y2" (VarReference "nonExistent")),
+]) Typing.([
+  ("x", NumberType),
+]) [
+  {|In 'x(1)', 'x' is not a function|},
+  {|No variable 'nonExistent', in 'nonExistent'|},
+];
