@@ -5,7 +5,7 @@ let analyzeProgram = fun program => {
   Js.log (Ast.formatProgram program);
   Js.log "";
   Js.log "Types:";
-  Js.log (Util.joinList "\n" (List.map (fun (varName, type_) => "- " ^ varName ^ ": " ^ Typing.typeToString(type_)) env));
+  Js.log (Util.joinList "\n" (List.map (fun (varName, type_) => "- " ^ varName ^ ": " ^ Typing_types.typeToString(type_)) env));
   if ((List.length errors) == 0) {
     Js.log "No errors";
   } else {

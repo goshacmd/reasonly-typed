@@ -1,34 +1,7 @@
 open Ast;
-
-type type_ =
-  | NumberType
-  | StringType
-  | AnyType
-  | GenericType (list string) type_
-  | GenericLabel string
-  | SimpleFnType type_ type_
-  ;
-
-
-type either 'a 'b = Left 'a | Right 'b;
-let bindEither = fun either fn => switch either {
-  | Right x => fn x
-  | Left x => Left x
-};
-let mapEither = fun fn either => switch either {
-  | Right x => Right (fn x)
-  | Left x => Left x
-};
-let mapLeft = fun fn either => switch either {
-  | Left x => Left (fn x)
-  | Right x => Right x
-};
-
-let mapSome = fun fn optn => switch optn {
-  | Some x => Some (fn x)
-  | None => None
-};
-
+open Either;
+open Typing_types;
+open Env;
 
 type typeError =
   | TypeMismatch expression type_ type_
@@ -38,37 +11,9 @@ type typeError =
 
 type typeResult = either typeError type_;
 
-type env = list (string, type_);
-
-let lookUpType = fun env varName =>
-  env
-  |> Util.maybeFind (fun (var, _) => var == varName)
-  |> mapSome (fun (_, type_) => type_);
-
-let addVar = fun varName type_ env errors => ([(varName, type_), ...env], errors);
-
 let changeMismatchExpr = fun newExpr error => switch error {
   | TypeMismatch _ exp actual => TypeMismatch newExpr exp actual
   | x => x
-};
-
-let rec typeToString = fun type_ => switch type_ {
-  | NumberType => "number";
-  | StringType => "string";
-  | AnyType => "any";
-  | GenericType labels wrappedType => "<" ^ (Util.joinList "," labels) ^ ">" ^ (typeToString wrappedType);
-  | GenericLabel label => label;
-  | SimpleFnType from to_ => (typeToString from) ^ " => " ^ (typeToString to_);
-};
-
-let isAny = fun type_ => switch type_ {
-  | AnyType => true
-  | _ => false
-};
-
-let isGenericVar = fun type_ => switch type_ {
-  | GenericLabel _ => true
-  | _ => false
 };
 
 let formatError = fun error => switch error {
@@ -160,18 +105,6 @@ switch expr {
     | None => Left (NoVariable expr varName)
   }
 };
-
-type errors = list string;
-type resultEnv = (env, errors);
-
-let defaultEnv = [
-  ("+", SimpleFnType NumberType (SimpleFnType NumberType NumberType)),
-  ("-", SimpleFnType NumberType (SimpleFnType NumberType NumberType)),
-];
-
-let emptyResultEnv = (defaultEnv, []);
-
-let addError = fun error env errors => (env, errors @ [error]);
 
 let buildEnv = fun program => List.fold_left (fun (env, errors) element => {
   switch element {
