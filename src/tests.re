@@ -93,3 +93,15 @@ expect "Types the id function properly" Ast.([
   ("five", NumberType),
   ("id", (GenericType ["A"] (SimpleFnType (GenericLabel "A") (GenericLabel "A")))),
 ]) [];
+
+expect "Infers generics properly" Ast.([
+  Statement (VarAssignment "id" (SimpleFn "x" (VarReference "x"))),
+  Statement (VarAssignment "delayedId" (SimpleFn "x" (SimpleFn "y" (VarReference "y")))),
+  Statement (VarAssignment "const" (SimpleFn "x" (SimpleFn "y" (FnCall (VarReference "id") (VarReference "x"))))),
+  Statement (VarAssignment "constFive" (FnCall (VarReference "id") (FnCall (VarReference "const") (NumberLiteral 5)))),
+]) Typing.([
+  ("constFive", (SimpleFnType AnyType NumberType)),
+  ("const", (GenericType ["A"] (SimpleFnType (GenericLabel "A") (SimpleFnType AnyType (GenericLabel "A"))))),
+  ("delayedId", (SimpleFnType AnyType (GenericType ["A"] (SimpleFnType (GenericLabel "A") (GenericLabel "A"))))),
+  ("id", (GenericType ["A"] (SimpleFnType (GenericLabel "A") (GenericLabel "A")))),
+]) [];

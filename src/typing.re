@@ -79,6 +79,12 @@ let formatError = fun error => switch error {
 
 let doesMatchType = fun expectedType givenType => (expectedType == givenType) || (isAny givenType) || (isAny expectedType);
 
+let rec replaceGenericWithSpecific = fun type_ genericLabel replacementType => switch type_ {
+  | GenericLabel label => if (label == genericLabel) { replacementType } else { type_ }
+  | SimpleFnType argType retType => SimpleFnType (replaceGenericWithSpecific argType genericLabel replacementType) (replaceGenericWithSpecific retType genericLabel replacementType)
+  | x => x
+};
+
 let computeFnCallType = fun expr expectedArgType returnType arg1Type => {
   let expectedArg1Type = if (isGenericVar expectedArgType) {
     arg1Type
@@ -86,8 +92,8 @@ let computeFnCallType = fun expr expectedArgType returnType arg1Type => {
     expectedArgType
   };
 
-  let actualReturnType = if ((isGenericVar expectedArgType) && (expectedArgType == returnType)) {
-    arg1Type
+  let actualReturnType = if (isGenericVar expectedArgType) {
+    replaceGenericWithSpecific returnType "A" arg1Type /* FIXME */
   } else {
     returnType
   };
@@ -99,15 +105,25 @@ let computeFnCallType = fun expr expectedArgType returnType arg1Type => {
   }
 };
 
-let rec inferType = fun (expr: expression) (varName: string) (env: env) : type_ => switch expr {
-  | VarReference refVarName => if (refVarName == varName) { GenericLabel "A" } else { AnyType }
+let rec getFnArgType = fun possiblyFnType => switch possiblyFnType {
+  | SimpleFnType from _ => from
+  | GenericType _ wrapped => getFnArgType wrapped
+  | _ => AnyType
+};
+
+let rec getFnRetType = fun possiblyFnType arg1 expr fnName env => switch possiblyFnType {
+  | SimpleFnType expectedArgType returnType =>
+    bindEither (typeOf arg1 env) (fun arg1Type => computeFnCallType expr expectedArgType returnType arg1Type)
+  | GenericType _ wrapped => getFnRetType wrapped arg1 expr fnName env
+  | _ => Left (NotAFunction expr fnName)
+}
+
+and inferType = fun (expr: expression) (varName: string) (env: env) : type_ => switch expr {
+  | VarReference refVarName => if (refVarName == varName) { GenericLabel "A" } else { AnyType } /* FIXME */
   | FnCall fnName arg1 => {
     if (isVar arg1 varName) {
       switch (typeOf fnName env) {
-        | Right x => switch x {
-          | SimpleFnType from _ => from
-          | _ => AnyType
-        }
+        | Right x => getFnArgType x
         | _ => AnyType
       }
     } else if (isFnCall fnName) {
@@ -137,16 +153,7 @@ switch expr {
   }
   | FnCall fnName arg1 => {
     let fnTypeResult = typeOf fnName env;
-    bindEither fnTypeResult (fun fnType => switch fnType {
-      | GenericType _ wrapped => switch wrapped {
-        | SimpleFnType expectedArgType returnType =>
-          bindEither (typeOf arg1 env) (fun arg1Type => computeFnCallType expr expectedArgType returnType arg1Type)
-        | _ => Left (NotAFunction expr fnName)
-      }
-      | SimpleFnType expectedArgType returnType =>
-        bindEither (typeOf arg1 env) (fun arg1Type => computeFnCallType expr expectedArgType returnType arg1Type)
-      | _ => Left (NotAFunction expr fnName)
-    })
+    bindEither fnTypeResult (fun fnType => getFnRetType fnType arg1 expr fnName env)
   }
   | VarReference varName => switch (lookUpType env varName) {
     | Some type_ => Right type_
